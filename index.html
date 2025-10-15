@@ -382,6 +382,42 @@
             }
         }
 
+        function formatDate(value) {
+            // إذا كان القيمة فارغة
+            if (!value) return '';
+            
+            // إذا كانت القيمة نصية بالفعل وتحتوي على /
+            if (typeof value === 'string' && value.includes('/')) {
+                return value;
+            }
+            
+            // إذا كانت القيمة رقم Excel (Serial Date)
+            if (typeof value === 'number' && value > 1000) {
+                try {
+                    // تحويل رقم Excel التسلسلي إلى تاريخ
+                    const date = XLSX.SSF.parse_date_code(value);
+                    return `${date.d}/${date.m}/${date.y}`;
+                } catch (e) {
+                    return value;
+                }
+            }
+            
+            // محاولة تحويل النص إلى تاريخ
+            try {
+                const date = new Date(value);
+                if (!isNaN(date.getTime())) {
+                    const day = date.getDate();
+                    const month = date.getMonth() + 1;
+                    const year = date.getFullYear();
+                    return `${day}/${month}/${year}`;
+                }
+            } catch (e) {
+                // إذا فشل، نعيد القيمة كما هي
+            }
+            
+            return value;
+        }
+
         function displayResults(headers, rows) {
             let html = '<table><thead><tr>';
             
@@ -394,8 +430,15 @@
             // عرض البيانات
             rows.forEach(row => {
                 html += '<tr>';
-                headers.forEach((_, index) => {
-                    const cellValue = row[index] !== null && row[index] !== undefined ? row[index] : '';
+                headers.forEach((header, index) => {
+                    let cellValue = row[index] !== null && row[index] !== undefined ? row[index] : '';
+                    
+                    // معالجة التواريخ - التحقق من اسم العمود
+                    const headerLower = String(header).toLowerCase();
+                    if (headerLower.includes('تاريخ') || headerLower.includes('date')) {
+                        cellValue = formatDate(cellValue);
+                    }
+                    
                     html += `<td>${cellValue}</td>`;
                 });
                 html += '</tr>';
@@ -406,13 +449,10 @@
             document.getElementById('resultContent').innerHTML = html;
             document.getElementById('results').style.display = 'block';
             
-            // تحديث تاريخ الطباعة
-            const today = new Date();
-            const day = String(today.getDate()).padStart(2, '0');
-            const month = String(today.getMonth() + 1).padStart(2, '0');
-            const year = today.getFullYear();
-            const dateStr = `${day}/${month}/${year}`;
-            document.getElementById('printDate').textContent = dateStr;
+            // تحديث تاريخ الطباعة بصيغة DD/MM/YYYY
+            const now = new Date();
+            const printDate = `${now.getDate()}/${now.getMonth() + 1}/${now.getFullYear()}`;
+            document.getElementById('printDate').textContent = printDate;
         }
 
         function showMessage(message) {
